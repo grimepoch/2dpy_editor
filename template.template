@@ -1,0 +1,56 @@
+# --- STR is the STRUCTURE object you talk with
+# STR.SetFParam0Name( 15 character max string ) : Sets the name shown in the parameters of STRUCTURE
+# STR.SetFParam1Name( 15 character max string ) : Sets the name shown in the parameters of STRUCTURE
+# STR.SetFParam2Name( 15 character max string ) : Sets the name shown in the parameters of STRUCTURE
+
+# STR.F0()                                      : Get the modulator value assigned to the parameter
+# STR.F1()                                      : Get the modulator value assigned to the parameter
+# STR.F2()                                      : Get the modulator value assigned to the parameter
+# STR.F0mix( val1 , val2 )                      : Interpolates a value between val1 and val2 relative to the float value of the parameter
+# STR.F1mix( val1 , val2 )                      : Interpolates a value between val1 and val2 relative to the float value of the parameter
+# STR.F2mix( val1 , val2 )                      : Interpolates a value between val1 and val2 relative to the float value of the parameter
+
+# STR.FT()                                      : Get float fractional time value
+# STR.IT()                                      : Get integer counter time value
+
+# STR.CheckAccent()                             : Returns the level of the accent
+# STR.CheckTrigger()                            : Checks to see if a trigger has happened, clears value so call once only in Render
+
+# STR.GetMaxSlots()                             : Used for modulation mode programs, tells you how many slots have data
+# STR.GetSlotData( slot number)                 : Returns all the data for the slot [ id, note, velocity ]
+
+def Init():
+   # --- Set parameter names
+   STR.SetFParam0Name("Param 1")
+   STR.SetFParam1Name("Param 2")
+   STR.SetFParam2Name("Param 3")
+   GLB.mode = 0
+
+def Render(cr):
+   # --- grabbing copies of local variables and demonstrating our mix methods as well
+   GLB.f0 = STR.F0mix(0.0,1.0)
+   GLB.f1 = STR.F1mix(0.0,1.0)
+   GLB.f2 = STR.F2mix(0.0,1.0)
+
+   GLB.t = STR.FT() + STR.IT()
+
+   # --- trigger can only be checked once, as it resets the internal flag (accent can be called multiple times)
+   GLB.trig = STR.CheckTrigger()
+   if GLB.trig:
+      # --- toggle mode if trigger has been invoked
+      GLB.mode = 0 if GLB.mode else 1
+   GLB.acc = STR.CheckAccent()
+
+   # --- Clear Screen
+   cr.set_source_rgba(0,0,1,1)
+   cr.draw_rect(0,0,320,240)
+   cr.fill()
+   
+   # --- Generate some modulating parameters
+   o1 = sin(GLB.t*10)
+   o2 = cos(GLB.t*10)
+
+   cr.set_source_rgba(f0,f1,f2,1)
+   cr.draw_rect(160+o1,120+o2,160*o2,120*o1)
+   cr.fill()
+
