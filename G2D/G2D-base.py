@@ -14,12 +14,16 @@ from math import *
 import random
 import numpy as np
 from colorsys import hsv_to_rgb
+import sys
 
 #linting code
 import ast, traceback
-
+import platform
+if platform.processor() == "x86_64":
+    sys.path.append("./G2D/x86")
+else:
+    sys.path.append("./G2D/arm")
 import G2Dbase as STR
-
 STR.Init();
 
 surface = cairo.ImageSurface.create_for_data(STR.GetImgPtr(),cairo.FORMAT_ARGB32,320,240);

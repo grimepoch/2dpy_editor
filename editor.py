@@ -7,13 +7,21 @@ import math
 import sys
 import os
 sys.path.append("./G2D")
-import G2Dhost
+import platform
+#host_env is temp right now until we determine how to know what evn we are in
+if platform.processor() == "x86_64":
+    sys.path.append("./G2D/x86")
+    import G2Dhost
+    host_env = "PARALLELS"
+else:
+    sys.path.append("./G2D/arm")
+    import G2Dhost
+    host_env = "PI"
 import cairo
 import subprocess
 from threading  import Thread
 import glob
 
-host_env = "PARALLELS"
 version = 0.1        
 
 #                C     C#    D     D#    E     F     F#    G     G#    A     A#     B      C      C#      D
