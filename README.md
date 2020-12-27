@@ -1,1 +1,1 @@
-# 2dpt_editor
+# 2dpy_editor
