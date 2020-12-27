@@ -42,15 +42,15 @@ def Render(cr):
    GLB.acc = STR.CheckAccent()
 
    # --- Clear Screen
-   cr.set_source_rgba(0,0,1,1)
-   cr.draw_rect(0,0,320,240)
+   cr.set_source_rgba(0,0,0,1)
+   cr.rectangle(0,0,320,240)
    cr.fill()
    
    # --- Generate some modulating parameters
    o1 = sin(GLB.t*10)
    o2 = cos(GLB.t*10)
 
-   cr.set_source_rgba(f0,f1,f2,1)
-   cr.draw_rect(160+o1,120+o2,160*o2,120*o1)
+   cr.set_source_rgba(GLB.f0,GLB.f1,GLB.f2,1)
+   cr.rectangle(160+o1,120+o2,160*o2,120*o1)
    cr.fill()
 

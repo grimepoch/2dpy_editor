@@ -1,5 +1,10 @@
 #!/usr/bin/python3
 
+#TODO: Autosorting of the file list
+#TODO: Fix up all the rest of automation, make sure things clear on mode changes
+#TODO: Add GIT refresh buttons
+#TODO: Make sure TIME works and the buttons with it
+
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GObject
@@ -26,6 +31,8 @@ version = 0.1
 #                C     C#    D     D#    E     F     F#    G     G#    A     A#     B      C      C#      D
 GetMIDINote = { 'A':0,'W':1,'S':2,'E':3,'D':4,'F':5,'T':6,'G':7,'Y':8,'H':9,'U':10,'J':11,'K':12,'O':13,'L':14 }
 
+log_i = 1
+
 class Screen(Gtk.DrawingArea):
     """ This class is a Drawing Area"""
     def __init__(self):
@@ -50,6 +57,8 @@ class Screen(Gtk.DrawingArea):
         self.draw(self.cr)
 
     def draw(s,cr):
+        if G2Dhost.CheckRestart():
+            s.p.startProcess()
         #Handle time
         #s.p.controls[f"f{n}_s"].get_value()
         new_time = float(s.p.itime) + s.p.ftime + 0.5*0.01
@@ -93,7 +102,8 @@ class MyWindow(Gtk.Window):
 
     def __init__(s):
         super(MyWindow, s).__init__()
-
+        s.outp = None
+        s.t    = None
         
         if host_env == "PARALLELS":
             s.f2dpy_path = "/media/user/STRUCT_SD"
@@ -120,17 +130,17 @@ class MyWindow(Gtk.Window):
         s.grid = Gtk.Grid()
         s.add(s.grid)
 
-        s.bReload = Gtk.Button(label="Reload")
-        s.bReload.connect("clicked",s.bReloadClicked)
-        s.grid.attach(s.bReload,0,0,2,1)
-
-        s.bReload = Gtk.Button(label="Save State")
+        #s.bReload = Gtk.Button(label="Reload")
         #s.bReload.connect("clicked",s.bReloadClicked)
-        s.grid.attach(s.bReload,2,0,2,1)
+        #s.grid.attach(s.bReload,0,0,2,1)
 
-        s.bReload = Gtk.Button(label="Reset State")
+        #s.bReload = Gtk.Button(label="Save State")
         #s.bReload.connect("clicked",s.bReloadClicked)
-        s.grid.attach(s.bReload,4,0,2,1)
+        #s.grid.attach(s.bReload,2,0,2,1)
+
+        #s.bReload = Gtk.Button(label="Reset State")
+        #s.bReload.connect("clicked",s.bReloadClicked)
+        #s.grid.attach(s.bReload,4,0,2,1)
 
         s.controls = {}
 
@@ -351,7 +361,7 @@ class MyWindow(Gtk.Window):
         fbts.add(s.fCopy)   
 
         s.fRename = Gtk.Button(label="Rename")
-        #s.fRename.connect("clicked",s.renameFile)
+        s.fRename.connect("clicked",s.renameFile)
         fbts.add(s.fRename)   
 
         s.fDelete = Gtk.Button(label="Delete")
@@ -380,10 +390,10 @@ class MyWindow(Gtk.Window):
     def update_files(s):
         # Check if card exists, if not mark missing
         if s.cardStatus == 0:
-            if os.path.isdir("/media/user/STRUCT_SD/2dpy"):
+            if os.path.isdir(s.f2dpy_path + "/2dpy"):
                 #print("Files Found!!")
                 s.cardStatus = 1
-                fs = list(glob.iglob("/media/user/STRUCT_SD/2dpy/*.2dpy"))
+                fs = list(glob.iglob(s.f2dpy_path + "/2dpy/*.2dpy"))
                 fs.reverse()
                 for filepath in fs:
                     filename = os.path.basename(filepath)
@@ -425,7 +435,65 @@ class MyWindow(Gtk.Window):
                             l = child.get_children()[0]
                             if l.ro == 0 and l.path == sel.path:
                                 s.fileList.remove(child)
+
+    def renameFile(s,b):
+        if s.fileList.get_selected_row():
+            for sel in s.fileList.get_selected_row():
+                if sel.ro == 1:
+                    s. ShowMessage("Warning","You cannot rename an internal 2dpy program")
+                else:
+                    msg = Gtk.Label(f"Enter a new filename (do not include .2dpy)")
+                    txt = Gtk.Entry()
+                    txt.set_text("new_name")
+                    msg_dialog = Gtk.Dialog(
+                        f"Enter new name",
+                    s,
+                    None,
+                    (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                    Gtk.STOCK_OK, Gtk.ResponseType.OK)
+                )
+                msg_dialog.vbox.add(msg)
+                msg_dialog.vbox.add(txt)
+                msg.show()
+                txt.show()
+                state = 1
+                while state:
+                    response = msg_dialog.run()
+                    if response == Gtk.ResponseType.OK:
+                        #check if filename is valid and unused
+                        if not s.validName(txt.get_text()):
+                            s.ShowMessage("Warning","Name has invalid characters, only use a-z,0-9, and _ or - in names.")
+                        elif os.path.isfile(s.f2dpy_path + "/2dpy/" + txt.get_text() + ".2dpy"):
+                            s.ShowMessage("Warning","Program with this name already exists on SD card, choose another.")
+                        elif ".2dpy" in txt.get_text():
+                            s.ShowMessage("Warning","Do not put .2dpy in the filename.")
+                        else:
+                            state = 0
+                            new_f = s.f2dpy_path + "/2dpy/" + txt.get_text() + ".2dpy"
+                            old_f = sel.path
+                            os.system(f"mv {old_f} {new_f}")
+                            for child in s.fileList.get_children():
+                                l = child.get_children()[0]
+                                if l.ro == 0 and l.path == sel.path:
+                                    s.fileList.remove(child)
+                            # call update to add new entry (in case someone doing something on disk
+                            filename = os.path.basename(new_f)
+                            label = Gtk.Label(label = "SD: "+filename,xalign=0)
+                            label.path = new_f
+                            label.ro   = 0
+                            s.fileList.prepend(label)
+                            label.show()
+                    else:
+                        state = 0
+                msg_dialog.destroy()
+
+
+
     def copyNewFile(s,b):
+        #Check for a structure SD card first
+        if not os.path.isdir(s.f2dpy_path):
+            s.ShowMessage("Warning","No STRUCTURE card detected, cannot create new file!")
+            return()
         if b.kind == "new" or len(s.fileList.get_selected_row()) > 0:
             if b.kind == "copy":
                 sel = s.fileList.get_selected_row().get_children()[0]
@@ -461,8 +529,10 @@ class MyWindow(Gtk.Window):
                                 old_f = sel.path
                         else:
                             old_f = "template.template"
+                        # Make sure we have the 2dpy dir
+                        if not os.path.isdir(s.f2dpy_path+"/2dpy"):
+                            os.system("mkdir " + s.f2dpt_path+"/2dpy")
                         os.system(f"cp {old_f} {new_f}")
-                        print(f"cp {old_f} {new_f}")
                         # call update to add new entry (in case someone doing something on disk
                         filename = os.path.basename(new_f)
                         label = Gtk.Label(label = "SD: "+filename,xalign=0)
@@ -501,7 +571,7 @@ class MyWindow(Gtk.Window):
                 if sel.ro == 1:
                     s. ShowMessage("Warning","Copy an internal 2dpy program to edit it")
                 else:
-                    os.system(f"nedit -lm Python {sel.path}") 
+                    os.system(f"gedit {sel.path}&") 
 
     def loadFile(s,b):
         if s.fileList.get_selected_row():
@@ -510,7 +580,8 @@ class MyWindow(Gtk.Window):
 
     def update_log(s,line):
         if not s.ignore:
-            s.log.insert_markup(s.log.get_end_iter(),line,-1)
+            #s.log.insert_markup(s.log.get_end_iter(),line,-1)
+            s.log.insert(s.log.get_end_iter(),line,-1)
             s.log_lines = s.log_lines + 1
             if s.log_lines < 2000:
                 pass
@@ -554,7 +625,7 @@ class MyWindow(Gtk.Window):
         s.KeyboardToMIDI(w.get_label(),0)
 
     def KeyboardToMIDI(s,key,status):
-        print(f"KTM: {key} {status}")
+        #print(f"KTM: {key} {status}")
         if key != "Z" and key != "X":
             if status == 1:
                 s.midib[key].get_style_context().remove_class(s.midib[key].upstyle)
@@ -606,6 +677,15 @@ class MyWindow(Gtk.Window):
         else:
             s.ignore = False
 
+    def startProcess(s):
+        if s.outp != None:
+            s.outp.terminate()
+        s.outp = subprocess.Popen(["python3","-u","G2D/G2D-base.py"],shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+        s.t = Thread(target=enqueue_output, args=(s.outp.stdout,s,s.outp))
+        s.t.daemon = True
+        s.t.start()
+
+
 win = MyWindow()
 
 #G2Dhost.LoadProgram(sys.argv[1])
@@ -613,25 +693,29 @@ GObject.threads_init()
 
 
 # Hack to remove the print warning
-def enqueue_output(out, tObj):
-    
+def enqueue_output(out, tObj,pObj):
+    global log_i
     skip_next = False
     for line in iter(out.readline, b''):
         line = line.decode()
         if "Prints, but never reads 'printed" in line:
             skip_next = True
-            i=0
+            log_i=0
         elif skip_next:
             skip_next = False
         else:
             GObject.idle_add(tObj.update_log,f"{tObj.log_lines}:"+line)
-        i=i+1
+        log_i=log_i+1
     out.close()
+    # in case it dies
+    if not os.path.isdir(f"/proc/{pObj.pid}"):
+        exit(0)
 
-outp = subprocess.Popen(["python3","-u","G2D/G2D-base.py"],shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
-t = Thread(target=enqueue_output, args=(outp.stdout,win))
-t.daemon = True
-t.start()
+win.startProcess()
+#outp = subprocess.Popen(["python3","-u","G2D/G2D-base.py"],shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+#t = Thread(target=enqueue_output, args=(outp.stdout,win))
+#t.daemon = True
+#t.start()
 
 win.show()
 Gtk.main()
