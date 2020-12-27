@@ -11,12 +11,11 @@ import platform
 #host_env is temp right now until we determine how to know what evn we are in
 if platform.processor() == "x86_64":
     sys.path.append("./G2D/x86")
-    import G2Dhost
     host_env = "PARALLELS"
 else:
     sys.path.append("./G2D/arm")
-    import G2Dhost
     host_env = "PI"
+import G2Dhost
 import cairo
 import subprocess
 from threading  import Thread
@@ -99,7 +98,7 @@ class MyWindow(Gtk.Window):
         if host_env == "PARALLELS":
             s.f2dpy_path = "/media/user/STRUCT_SD"
         else:
-            s.f2dpy_path = ""
+            s.f2dpy_path = "/media/pi/STRUCT_SD"
 
 
         style_provider = Gtk.CssProvider()
