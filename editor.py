@@ -26,7 +26,7 @@ import subprocess
 from threading  import Thread
 import glob
 
-version = 0.1        
+version = 1.0        
 
 #                C     C#    D     D#    E     F     F#    G     G#    A     A#     B      C      C#      D
 GetMIDINote = { 'A':0,'W':1,'S':2,'E':3,'D':4,'F':5,'T':6,'G':7,'Y':8,'H':9,'U':10,'J':11,'K':12,'O':13,'L':14 }
@@ -61,7 +61,10 @@ class Screen(Gtk.DrawingArea):
             s.p.startProcess()
         #Handle time
         #s.p.controls[f"f{n}_s"].get_value()
-        new_time = float(s.p.itime) + s.p.ftime + 0.5*0.01
+        if s.p.timeActive.get_active():
+            new_time = float(s.p.itime) + s.p.ftime + 0.5*0.01*s.p.timeSlider.get_value()
+        else:
+            new_time = float(s.p.itime) + s.p.ftime + 0.5*0.01
         s.p.itime = int(new_time)
         s.p.ftime = new_time%1.0
         G2Dhost.SetTime(s.p.itime,s.p.ftime)
@@ -122,7 +125,7 @@ class MyWindow(Gtk.Window):
                 Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         s.set_title(f"STRUCTURE 2D Program Viewer {version}")
-        s.resize(800, 600)
+        s.resize(800, 800)
         s.connect("destroy", Gtk.main_quit)
         s.midiOffset = 3*12 
         s.velocity = 127
@@ -201,7 +204,7 @@ class MyWindow(Gtk.Window):
 
         data = [
                 [ "cEMT","Extra Mod Type", ["Rand","MIDI","Freq"] ],
-                [ "cRM", "Rand Mode", ["Value","Note"] ],
+                [ "cRM", "Rand Mode", ["Note","Value"] ],
                 [ "cRNRW", "Rand Note Rate Wait", ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"] ],
                 [ "cRVR", "Rand Velocity Rand", ["0","1","2","3","4","5","6","7","8","9","10"] ],
                 [ "cRL", "Rand Length", ["1","2","3","4","5","6","7","8","9","10"] ],
@@ -219,25 +222,30 @@ class MyWindow(Gtk.Window):
             s.grid.attach(s.StructUI[name],4,i,1,1)
             i = i+1
 
+        #The only callback we need from above is changing cEMT or cRM
+        s.StructUI["cEMT"].connect("changed",s.ModeChanged)
+        s.StructUI["cRM"].connect("changed",s.ModeChanged)
 
         # Add Time Control [slider, active value]
-        t = Gtk.Label("Time Control")
-        s.grid.attach(t,3,i,1,1)
+        s.timeLab = Gtk.Label("Adj Time Control")
+        s.grid.attach(s.timeLab,3,i,1,1)
+        s.timeLab.set_sensitive(False)
 
         s.timeSlider = Gtk.Scale()
-        s.timeSlider.set_range(-1,1)
+        s.timeSlider.set_range(-2,2)
         s.timeSlider.set_digits(2)
         s.timeSlider.set_value(0.0)
         s.timeSlider.set_size_request(120,20)
+        s.timeSlider.set_sensitive(False)
         s.grid.attach(s.timeSlider,4,i,1,1)
         i = i+1
 
         s.timeActive = Gtk.CheckButton("Active")
         s.timeActive.set_active(False)
         s.grid.attach(s.timeActive,4,i,1,1)
+        s.timeActive.connect("toggled",s.TimeActiveChanged)
 
-        # Add visualizer for different modes
-
+        # TODO: Add visualizer for different modes
 
         s.midib = {}
         fixed = Gtk.Fixed()
@@ -333,6 +341,7 @@ class MyWindow(Gtk.Window):
         t.set_size_request(180,20)
         s.grid.attach(t,6,0,2,1)
         s.fileList = Gtk.ListBox()
+        s.fileList.set_sort_func(s.SortFileList)
 
         vbox = Gtk.VBox()
         vbox.add(s.fileList)
@@ -384,8 +393,51 @@ class MyWindow(Gtk.Window):
 
 
         s.update_files()
-        
         s.show_all()
+
+    def SortFileList(s,a,b):
+        ac = a.get_children()[0]
+        bc = b.get_children()[0]
+        if type(ac).__name__ != 'Separator':
+            ai = ac.get_text().split(":")
+        else:
+            ai = "SEP"
+        if type(bc).__name__ != 'Separator':
+            bi = bc.get_text().split(":")
+        else:
+            bi = "SEP"
+
+        if ai == "SEP":
+            if bi[0]=="SD":
+                return 1
+            else:
+                return 0
+        if bi == "SEP":
+            if ai[0]=="SD":
+                return 0
+            else:
+                return 1
+
+        if(ai[0]=="SD" and bi[0]=="IN"):
+            return 0
+        elif(ai[0]=="IN" and bi[0]=="SD"):
+            return 1
+        else:
+            return(cmp(ai[1],bi[1]))
+        return 0
+
+    def TimeActiveChanged(s,c):
+        if c.get_active():
+            s.timeLab.set_sensitive(True)
+            s.timeSlider.set_sensitive(True)
+        else:
+            s.timeLab.set_sensitive(False)
+            s.timeSlider.set_sensitive(False)
+
+
+    def ModeChanged(s,e):
+        G2Dhost.SetExtraModType(*[s.StructUI[k].get_active() for k in ["cEMT","cRM","cRNRW","cRVR","cRL","cFM"]])
+
     # File access might depend on installation
     def update_files(s):
         # Check if card exists, if not mark missing
@@ -685,6 +737,8 @@ class MyWindow(Gtk.Window):
         s.t.daemon = True
         s.t.start()
 
+def cmp(a,b):
+    return (a>b) - (a<b)
 
 win = MyWindow()
 
