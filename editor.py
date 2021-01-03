@@ -12,6 +12,14 @@ sys.path.append("./G2D")
 import platform
 import git
 import time
+from tendo import singleton
+
+try:
+    me = singleton.SingleInstance()
+except:
+    sys.exit(0)
+
+
 
 #host_env is temp right now until we determine how to know what evn we are in
 if platform.processor() == "x86_64":
