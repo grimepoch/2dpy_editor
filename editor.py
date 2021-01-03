@@ -1,9 +1,6 @@
 #!/usr/bin/python3
 
-#TODO: Autosorting of the file list
-#TODO: Fix up all the rest of automation, make sure things clear on mode changes
 #TODO: Add GIT refresh buttons
-#TODO: Make sure TIME works and the buttons with it
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -13,6 +10,9 @@ import sys
 import os
 sys.path.append("./G2D")
 import platform
+import git
+import time
+
 #host_env is temp right now until we determine how to know what evn we are in
 if platform.processor() == "x86_64":
     sys.path.append("./G2D/x86")
@@ -297,8 +297,11 @@ class MyWindow(Gtk.Window):
 
         s.SendStructureUISettings()
 
-        #Let's see if we can capture STDIN/OUT/ERR
         bts = Gtk.VBox()
+        s.bUpdate = Gtk.Button(label="Check For Updates")
+        s.bUpdate.connect("clicked",s.bCheckForUpdates)
+        bts.add(s.bUpdate)
+
         s.bAutoS = Gtk.CheckButton()
         s.bAutoS.set_label("Autoscroll")
         s.autoscroll = True
@@ -695,6 +698,80 @@ class MyWindow(Gtk.Window):
                 s.midiOffset = s.midiOffset+12
                 s.octave.set_text(f"Octave: {s.midiOffset//12}")
 
+    def bCheckForUpdates(s,b):
+        d = Gtk.Dialog()
+        d.set_title("Update System")
+        d.set_transient_for(s)
+        d.set_modal(True)
+        s.b1=d.add_button(button_text="Update Programs",response_id=1)
+        s.b2=d.add_button(button_text="Update Editor",response_id=2)
+        s.b3=d.add_button(button_text="Update Both",response_id=3)
+        s.b4=d.add_button(button_text="Cancel",response_id=0)
+        d.connect("response",s.bCFUResponse)
+        c = d.get_content_area()
+        l = Gtk.Label("Select which you'd like to look for updates")
+        s.m1 = l
+        c.add(l)
+        l = Gtk.Label("")
+        c.add(l)
+        l = Gtk.Label()
+        l.set_markup("<b>Note: Your networking must be working to use this feature</b>")
+        s.m2 = l
+        c.add(l)
+
+        d.show_all()
+
+    def bCFUResponse(s,w,r_id):
+        if r_id == 0:
+            w.destroy()
+            return
+        r = ""
+        s.m1.set_text("Please wait while we check for updates...")
+        s.m2.set_text("")
+        s.b1.set_sensitive(False)
+        s.b2.set_sensitive(False)
+        s.b3.set_sensitive(False)
+        s.b4.set_sensitive(False)
+        while Gtk.events_pending():
+            Gtk.main_iteration()
+        if s.Ping("github.com"):
+            if r_id == 2 or r_id == 3:
+                r=r+s.GitUpdate(".","Editor","main")
+            if r_id == 1 or r_id == 3:
+                r=r+s.GitUpdate("../2dpy/.","Programs","master")
+            w.destroy()
+            s.ShowMessage("Result",r)
+        else:
+            w.destroy()
+            s.ShowMessage("Error","Cannot connect to server, network not connected or host down.")
+            return
+
+    def GitUpdate(s,d,desc,b):
+        print(f"Checking status of git repo in '{d}'") 
+        repo = git.Repo(d)
+        print(f"Fetching latest from server")
+        repo.remotes.origin.fetch()
+        commits_ahead  = list(repo.iter_commits(f"{b}..origin/{b}"))
+        commits_behind = list(repo.iter_commits(f"origin/{b}..{b}"))
+
+        count_a = len(commits_ahead) #newer commits on server
+        count_b = len(commits_behind) #local changes that need to be erased first maybe
+        if(count_a == 0):
+            return(f"{desc} is already latest.\n")
+        elif(count_b != 0):
+            return(f"{desc} has some local changes, must be manually reset.\n")
+        else:
+            repo.remotes.origin.pull()
+            return(f"{desc} has been updated to a newer version, please restart app.\n")
+        return("")
+    
+    def Ping(s,h):
+        print(f"Checking for '{h}' connectivity.")
+        response = os.system("ping -c 1 " + h)
+        if response == 0:
+            return 1
+        else:
+            return 0
 
     def bReloadClicked(s,d):
         G2Dhost.LoadProgram(sys.argv[1])
