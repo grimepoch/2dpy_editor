@@ -4,7 +4,7 @@
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GObject
+from gi.repository import Gtk, Gdk, GObject, GLib
 import math
 import sys
 import os
@@ -42,7 +42,7 @@ class Screen(Gtk.DrawingArea):
         ## Connect to the "draw" signal
         self.connect("draw", self.on_draw)
         ## This is what gives the animation life!
-        GObject.timeout_add(10, self.tick) # Go call tick every 10 whatsits.
+        GLib.timeout_add(10, self.tick) # Go call tick every 10 whatsits.
 
     def tick(self):
         rect = Gdk.Rectangle();
@@ -168,7 +168,7 @@ class MyWindow(Gtk.Window):
             s.controls[n+"_s"].set_size_request(120,20)
             s.grid.attach(s.controls[n+"_s"],0,i,1,1)
 
-            s.controls[n+"_r"] = Gtk.CheckButton("LFO")
+            s.controls[n+"_r"] = Gtk.CheckButton(label="LFO")
             s.controls[n+"_r"].set_active(False)
             #s.controls[n+"_r"].set_valign(Gtk.Align.START)
             #s.controls[n+"_r"].connect("clicked", s.on_click)
@@ -212,7 +212,7 @@ class MyWindow(Gtk.Window):
             ]
         for r in data:
             (name,desc,options) = r
-            s.grid.attach(Gtk.Label(desc),3,i,1,1)
+            s.grid.attach(Gtk.Label(label=desc),3,i,1,1)
             s.StructUI[name] = Gtk.ComboBoxText()
             s.StructUI[name].set_entry_text_column(0)
             #s.StructUI[name].connect("changed",s.StructUI[name].callback)
@@ -227,7 +227,7 @@ class MyWindow(Gtk.Window):
         s.StructUI["cRM"].connect("changed",s.ModeChanged)
 
         # Add Time Control [slider, active value]
-        s.timeLab = Gtk.Label("Adj Time Control")
+        s.timeLab = Gtk.Label(label="Adj Time Control")
         s.grid.attach(s.timeLab,3,i,1,1)
         s.timeLab.set_sensitive(False)
 
@@ -240,7 +240,7 @@ class MyWindow(Gtk.Window):
         s.grid.attach(s.timeSlider,4,i,1,1)
         i = i+1
 
-        s.timeActive = Gtk.CheckButton("Active")
+        s.timeActive = Gtk.CheckButton(label="Active")
         s.timeActive.set_active(False)
         s.grid.attach(s.timeActive,4,i,1,1)
         s.timeActive.connect("toggled",s.TimeActiveChanged)
@@ -289,7 +289,7 @@ class MyWindow(Gtk.Window):
 
         s.keyTrack = {}
 
-        s.octave = Gtk.Label(f"Octave: {s.midiOffset//12}")
+        s.octave = Gtk.Label(label=f"Octave: {s.midiOffset//12}")
         fixed.put(s.octave,150,115)
 
 
@@ -340,7 +340,7 @@ class MyWindow(Gtk.Window):
         
         # File selection
         s.cardStatus = 0 #0 = empty, 1 = card there
-        t = Gtk.Label("File List")
+        t = Gtk.Label(label="File List")
         t.set_size_request(180,20)
         s.grid.attach(t,6,0,2,1)
         s.fileList = Gtk.ListBox()
@@ -349,7 +349,7 @@ class MyWindow(Gtk.Window):
         vbox = Gtk.VBox()
         vbox.add(s.fileList)
         scrWin = Gtk.ScrolledWindow()
-        scrWin.add_with_viewport(vbox)
+        scrWin.add(vbox)
         s.grid.attach(scrWin,6,1,2,16)
         
         fbts = Gtk.VBox()
@@ -465,14 +465,14 @@ class MyWindow(Gtk.Window):
                     if child.get_children()[0].ro == 0:
                         s.fileList.remove(child)
                 s.cardStatus = 0
-        GObject.timeout_add_seconds(2,s.update_files)
+        GLib.timeout_add_seconds(2,s.update_files)
     def deleteFile(s,b):
         if s.fileList.get_selected_row():
             for sel in s.fileList.get_selected_row():
                 if sel.ro == 1:
                     s.ShowMessage("Warning","You cannot remove an internal 2dpy program")
                 else:
-                    msg = Gtk.Label(f"Are you sure you want to delete?    {sel.get_text()}")
+                    msg = Gtk.Label(label=f"Are you sure you want to delete?    {sel.get_text()}")
                     msg_dialog = Gtk.Dialog(
                         "Warning",
                         s,
@@ -497,7 +497,7 @@ class MyWindow(Gtk.Window):
                 if sel.ro == 1:
                     s. ShowMessage("Warning","You cannot rename an internal 2dpy program")
                 else:
-                    msg = Gtk.Label(f"Enter a new filename (do not include .2dpy)")
+                    msg = Gtk.Label(label=f"Enter a new filename (do not include .2dpy)")
                     txt = Gtk.Entry()
                     txt.set_text("new_name")
                     msg_dialog = Gtk.Dialog(
@@ -552,7 +552,7 @@ class MyWindow(Gtk.Window):
         if b.kind == "new" or len(s.fileList.get_selected_row()) > 0:
             if b.kind == "copy":
                 sel = s.fileList.get_selected_row().get_children()[0]
-            msg = Gtk.Label(f"Enter a filename for your {b.kind} (do not include .2dpy)")
+            msg = Gtk.Label(label=f"Enter a filename for your {b.kind} (do not include .2dpy)")
             txt = Gtk.Entry()
             txt.set_text("new_name")
             msg_dialog = Gtk.Dialog(
@@ -607,7 +607,7 @@ class MyWindow(Gtk.Window):
         return True
 
     def ShowMessage(s,hdr,txt):
-        msg = Gtk.Label(txt)
+        msg = Gtk.Label(label=txt)
         msg_dialog = Gtk.Dialog(
             hdr,
             s,
@@ -709,10 +709,10 @@ class MyWindow(Gtk.Window):
         s.b4=d.add_button(button_text="Cancel",response_id=0)
         d.connect("response",s.bCFUResponse)
         c = d.get_content_area()
-        l = Gtk.Label("Select which you'd like to look for updates")
+        l = Gtk.Label(label="Select which you'd like to look for updates")
         s.m1 = l
         c.add(l)
-        l = Gtk.Label("")
+        l = Gtk.Label(label="")
         c.add(l)
         l = Gtk.Label()
         l.set_markup("<b>Note: Your networking must be working to use this feature</b>")
@@ -820,7 +820,7 @@ def cmp(a,b):
 win = MyWindow()
 
 #G2Dhost.LoadProgram(sys.argv[1])
-GObject.threads_init()
+#GObject.threads_init()
 
 
 # Hack to remove the print warning
