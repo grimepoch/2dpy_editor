@@ -594,7 +594,7 @@ class MyWindow(Gtk.Window):
                             old_f = "template.template"
                         # Make sure we have the 2dpy dir
                         if not os.path.isdir(s.f2dpy_path+"/2dpy"):
-                            os.system("mkdir " + s.f2dpt_path+"/2dpy")
+                            os.system("mkdir " + s.f2dpy_path+"/2dpy")
                         os.system(f"cp {old_f} {new_f}")
                         # call update to add new entry (in case someone doing something on disk
                         filename = os.path.basename(new_f)
